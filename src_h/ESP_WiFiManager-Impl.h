@@ -1101,29 +1101,12 @@ void ESP_WiFiManager::handleRoot()
   page += FPSTR(WM_HTTP_STYLE);
   page += _customHeadElement;
   page += FPSTR(WM_HTTP_HEAD_END);
-  page += "<h2>";
-  page += _apName;
-
-  if (WiFi_SSID() != "")
-  {
-    if (WiFi.status() == WL_CONNECTED)
-    {
-      page += " on ";
-      page += WiFi_SSID();
-    }
-    else
-    {
-      page += " <s>on ";
-      page += WiFi_SSID();
-      page += "</s>";
-    }
-  }
-
-  page += "</h2>";
+  
   page += FPSTR(WM_HTTP_PORTAL_OPTIONS);
   page += F("<div class=\"msg\">");
   reportStatus(page);
   page += F("</div>");
+  page += "<br/>";
   page += FPSTR(WM_HTTP_END);
 
   server->send(200, "text/html", page);
@@ -1138,7 +1121,31 @@ void ESP_WiFiManager::handleWifi()
   LOGDEBUG(F("Handle WiFi"));
 
   // Disable _configPortalTimeout when someone accessing Portal to give some time to config
-  _configPortalTimeout = 0;		//KH
+  _configPortalTimeout = DEFAULT_PORTAL_TIMEOUT;		//KH
+
+
+  server->setContentLength(-1/*CONTENT_LENGTH_UNKNOWN*/);
+
+  String page = FPSTR(WM_HTTP_HEAD_START);
+
+  page.replace("{v}", "Config ESP");
+  page += FPSTR(WM_HTTP_SCRIPT);
+  page += FPSTR(WM_HTTP_SCRIPT_NTP);
+  page += FPSTR(WM_HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(WM_HTTP_HEAD_END);
+
+  server->send(200, "text/html", page);
+
+  page = "";
+
+  
+    //  KH, New, v1.0.6+
+  numberOfNetworks = scanWifiNetworks(&networkIndices);
+
+  server->setContentLength(-1/*CONTENT_LENGTH_UNKNOWN*/);
+ 
+  
   
   server->sendHeader(FPSTR(WM_HTTP_CACHE_CONTROL), FPSTR(WM_HTTP_NO_STORE));
 
@@ -1150,18 +1157,9 @@ void ESP_WiFiManager::handleWifi()
   server->sendHeader(FPSTR(WM_HTTP_PRAGMA), FPSTR(WM_HTTP_NO_CACHE));
   server->sendHeader(FPSTR(WM_HTTP_EXPIRES), "-1");
   
-  String page = FPSTR(WM_HTTP_HEAD_START);
+ 
   
-  page.replace("{v}", "Config ESP");
-  page += FPSTR(WM_HTTP_SCRIPT);
-  page += FPSTR(WM_HTTP_SCRIPT_NTP);
-  page += FPSTR(WM_HTTP_STYLE);
-  page += _customHeadElement;
-  page += FPSTR(WM_HTTP_HEAD_END);
-  page += F("<h2>Configuration</h2>");
 
-  //  KH, New, v1.0.6+
-  numberOfNetworks = scanWifiNetworks(&networkIndices);
 
   //Print list of WiFi networks that were found in earlier scan
   if (numberOfNetworks == 0)
@@ -1181,7 +1179,7 @@ void ESP_WiFiManager::handleWifi()
         continue; // skip dups and those that are below the required quality
       
       LOGDEBUG1(F("Index ="), i);
-      LOGDEBUG1(F("SSID ="), WiFi.SSID(networkIndices[i]));
+      LOGDEBUG1(F("SSID ="), "SSID");
       LOGDEBUG1(F("RSSI ="), WiFi.RSSI(networkIndices[i]));
 
       int quality = getRSSIasQuality(WiFi.RSSI(networkIndices[i]));
@@ -1284,6 +1282,11 @@ void ESP_WiFiManager::handleWifi()
   // You'll loose the feature of dynamically changing from DHCP to static IP, or vice versa
   // You have to explicitly specify false to disable the feature.
 
+  server->sendContent(page);
+  page = "";
+
+  
+
 #if !USE_STATIC_IP_CONFIG_IN_CP
   if (_WiFi_STA_IPconfig._sta_static_ip)
 #endif  
@@ -1292,6 +1295,7 @@ void ESP_WiFiManager::handleWifi()
     page += FPSTR(WM_FLDSET_START);
     //////
     
+    page += FPSTR(WM_FLDSET_START);
     String item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "ip");
@@ -1301,7 +1305,9 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_ip.toString());
 
     page += item;
+    page += FPSTR(WM_FLDSET_END);
 
+    page += FPSTR(WM_FLDSET_START);
     item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "gw");
@@ -1311,7 +1317,9 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_gw.toString());
 
     page += item;
+    page += FPSTR(WM_FLDSET_END);
 
+    page += FPSTR(WM_FLDSET_START);
     item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "sn");
@@ -1319,10 +1327,11 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{p}", "Subnet");
     item.replace("{l}", "15");
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_sn.toString());
-
+    page += FPSTR(WM_FLDSET_END);
+#ifdef USE_CONFIGURABLE_DNS
   #if USE_CONFIGURABLE_DNS
     //***** Added for DNS address options *****
-    page += item;
+    /*page += item;
 
     item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
@@ -1340,9 +1349,10 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{n}", "dns2");
     item.replace("{p}", "DNS2 IP");
     item.replace("{l}", "15");
-    item.replace("{v}", _WiFi_STA_IPconfig._sta_static_dns2.toString());
+    item.replace("{v}", _WiFi_STA_IPconfig._sta_static_dns2.toString());*/
     //***** End added for DNS address options *****
   #endif
+#endif
 
     page += item;
     
@@ -1357,7 +1367,10 @@ void ESP_WiFiManager::handleWifi()
 
   page += FPSTR(WM_HTTP_END);
 
-  server->send(200, "text/html", page);
+  //server->send(200, "text/html", page);
+  server->sendContent(page);
+  server->sendContent("");
+  
 
   LOGDEBUG(F("Sent config page"));
 }
@@ -1508,6 +1521,7 @@ void ESP_WiFiManager::handleServerClose()
   page += FPSTR(WM_HTTP_END);
   
   server->send(200, "text/html", page);
+
   
   stopConfigPortal = true; //signal ready to shutdown config portal
   
@@ -1546,9 +1560,12 @@ void ESP_WiFiManager::handleInfo()
   page += _customHeadElement;
   page += FPSTR(WM_HTTP_HEAD_END);
   
-  page += F("<h2>WiFi Information</h2>");
+ 
   
+  page += F("<div class=\"msg\">");
   reportStatus(page);
+  page += F("</div>");
+  page += "<br/>";
   
   page += FPSTR(WM_FLDSET_START);
   
@@ -1616,8 +1633,7 @@ void ESP_WiFiManager::handleInfo()
   page += FPSTR(WM_FLDSET_END);
 #endif
 
-  page += F("<p/>More information about ESP_WiFiManager at");
-  page += F("<p/><a href=\"https://github.com/khoih-prog/ESP_WiFiManager\">https://github.com/khoih-prog/ESP_WiFiManager</a>");
+  
   page += FPSTR(WM_HTTP_END);
 
   server->send(200, "text/html", page);
@@ -1681,6 +1697,14 @@ void ESP_WiFiManager::handleScan()
   // Disable _configPortalTimeout when someone accessing Portal to give some time to config
   _configPortalTimeout = 0;		//KH
 
+  int n;
+  int* indices;
+
+  //Space for indices array allocated on heap in scanWifiNetworks
+  //and should be freed when indices no longer required.
+
+  n = scanWifiNetworks(&indices);
+
   LOGDEBUG(F("State-Json"));
   
   server->sendHeader(FPSTR(WM_HTTP_CACHE_CONTROL), FPSTR(WM_HTTP_NO_STORE));
@@ -1693,13 +1717,7 @@ void ESP_WiFiManager::handleScan()
   server->sendHeader(FPSTR(WM_HTTP_PRAGMA), FPSTR(WM_HTTP_NO_CACHE));
   server->sendHeader(FPSTR(WM_HTTP_EXPIRES), "-1");
 
-  int n;
-  int *indices;
 
-  //Space for indices array allocated on heap in scanWifiNetworks
-  //and should be freed when indices no longer required.
-
-  n = scanWifiNetworks(&indices);
   LOGDEBUG(F("In handleScan, scanWifiNetworks done"));
   String page = F("{\"Access_Points\":[");
 
@@ -1713,7 +1731,7 @@ void ESP_WiFiManager::handleScan()
       page += F(", ");
 
     LOGDEBUG1(F("Index ="), i);
-    LOGDEBUG1(F("SSID ="), WiFi.SSID(indices[i]));
+    LOGDEBUG1(F("SSID ="), "SSID");
     LOGDEBUG1(F("RSSI ="), WiFi.RSSI(indices[i]));
 
     int quality = getRSSIasQuality(WiFi.RSSI(indices[i]));
@@ -1772,7 +1790,10 @@ void ESP_WiFiManager::handleReset()
   page += FPSTR(WM_HTTP_STYLE);
   page += _customHeadElement;
   page += FPSTR(WM_HTTP_HEAD_END);
+  page += F("<div class=\"msg\">");
   page += F("Resetting");
+  page += F("</div>");
+  
   page += FPSTR(WM_HTTP_END);
   
   server->send(200, "text/html", page);
