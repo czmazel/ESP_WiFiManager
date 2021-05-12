@@ -1121,7 +1121,7 @@ void ESP_WiFiManager::handleWifi()
   LOGDEBUG(F("Handle WiFi"));
 
   // Disable _configPortalTimeout when someone accessing Portal to give some time to config
-  _configPortalTimeout = DEFAULT_PORTAL_TIMEOUT;		//KH
+  _configPortalTimeout = 0;		//KH
 
 
   server->setContentLength(-1/*CONTENT_LENGTH_UNKNOWN*/);
@@ -1164,7 +1164,7 @@ void ESP_WiFiManager::handleWifi()
   //Print list of WiFi networks that were found in earlier scan
   if (numberOfNetworks == 0)
   {
-    page += F("WiFi scan found no networks. Restart configuration portal to scan again.");
+    page += F("<br><div class='innerdiv'>WiFi scan found no networks. Restart configuration portal to scan again.</div><br>");
   }
   else
   {
@@ -1282,6 +1282,7 @@ void ESP_WiFiManager::handleWifi()
   // You'll loose the feature of dynamically changing from DHCP to static IP, or vice versa
   // You have to explicitly specify false to disable the feature.
 
+  
   server->sendContent(page);
   page = "";
 
@@ -1292,10 +1293,10 @@ void ESP_WiFiManager::handleWifi()
 #endif  
   {
     // From v1.0.10
-    page += FPSTR(WM_FLDSET_START);
+    //page += FPSTR(WM_FLDSET_START);
     //////
     
-    page += FPSTR(WM_FLDSET_START);
+    page += FPSTR(WM_DIV_START);
     String item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "ip");
@@ -1305,9 +1306,12 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_ip.toString());
 
     page += item;
-    page += FPSTR(WM_FLDSET_END);
+    page += FPSTR(WM_DIV_END);
 
-    page += FPSTR(WM_FLDSET_START);
+    page += FPSTR(WM_DIV_START);
+    page += FPSTR(WM_DIV_END);
+
+    page += FPSTR(WM_DIV_START);
     item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "gw");
@@ -1317,9 +1321,12 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_gw.toString());
 
     page += item;
-    page += FPSTR(WM_FLDSET_END);
+    page += FPSTR(WM_DIV_END);
 
-    page += FPSTR(WM_FLDSET_START);
+    page += FPSTR(WM_DIV_START);
+    page += FPSTR(WM_DIV_END);
+
+    page += FPSTR(WM_DIV_START);
     item = FPSTR(WM_HTTP_FORM_LABEL);
     item += FPSTR(WM_HTTP_FORM_PARAM);
     item.replace("{i}", "sn");
@@ -1327,7 +1334,7 @@ void ESP_WiFiManager::handleWifi()
     item.replace("{p}", "Subnet");
     item.replace("{l}", "15");
     item.replace("{v}", _WiFi_STA_IPconfig._sta_static_sn.toString());
-    page += FPSTR(WM_FLDSET_END);
+    page += FPSTR(WM_DIV_END);
 #ifdef USE_CONFIGURABLE_DNS
   #if USE_CONFIGURABLE_DNS
     //***** Added for DNS address options *****
@@ -1357,7 +1364,7 @@ void ESP_WiFiManager::handleWifi()
     page += item;
     
     // From v1.0.10
-    page += FPSTR(WM_FLDSET_END);
+    //page += FPSTR(WM_FLDSET_END);
     //////
 
     page += "<br/>";
@@ -1465,7 +1472,7 @@ void ESP_WiFiManager::handleWifiSave()
   page += FPSTR(WM_HTTP_SAVED);
   page.replace("{v}", _apName);
   page.replace("{x}", _ssid);
-  
+  page.replace("{z}", "http://cloudbrew.local");
   // KH, update from v1.1.0
   page.replace("{x1}", _ssid1);
   //////
@@ -1475,6 +1482,8 @@ void ESP_WiFiManager::handleWifiSave()
   server->send(200, "text/html", page);
 
   LOGDEBUG(F("Sent wifi save page"));
+
+  delay(5000);
 
   connect = true; //signal ready to connect/reset
 
@@ -1540,6 +1549,7 @@ void ESP_WiFiManager::handleInfo()
 
   // Disable _configPortalTimeout when someone accessing Portal to give some time to config
   _configPortalTimeout = 0;		//KH
+  server->setContentLength(-1/*CONTENT_LENGTH_UNKNOWN*/);
 
   server->sendHeader(FPSTR(WM_HTTP_CACHE_CONTROL), FPSTR(WM_HTTP_NO_STORE));
 
@@ -1568,6 +1578,10 @@ void ESP_WiFiManager::handleInfo()
   page += "<br/>";
   
   page += FPSTR(WM_FLDSET_START);
+
+  server->send(200, "text/html", page);
+
+  page = "";
   
   page += F("<h3>Device Data</h3>");
   page += F("<table class=\"table\">");
@@ -1614,6 +1628,9 @@ void ESP_WiFiManager::handleInfo()
   page += WiFi_SSID();
   page += F("</td></tr>");
 
+  server->sendContent(page);
+  page = "";
+
   page += F("<tr><td>Station IP</td><td>");
   page += WiFi.localIP().toString();
   page += F("</td></tr>");
@@ -1636,7 +1653,9 @@ void ESP_WiFiManager::handleInfo()
   
   page += FPSTR(WM_HTTP_END);
 
-  server->send(200, "text/html", page);
+  server->sendContent(page);
+  page = "";
+  server->sendContent(page);
 
   LOGDEBUG(F("Sent info page"));
 }
