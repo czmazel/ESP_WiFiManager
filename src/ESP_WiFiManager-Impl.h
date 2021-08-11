@@ -1945,17 +1945,20 @@ int ESP_WiFiManager::scanWifiNetworks(int **indicesptr)
   WiFi.scanNetworks(true);
 
   // Set WiFi scan timeout
+#if defined(ESP8266)
   using esp8266::polledTimeout::oneShotMs;
   oneShotMs scanTimeout(5000);
+#endif
 
+  unsigned long long start = millis();
   // Wait for WiFi scan change or timeout
   do {
       // Refresh watchdog
       delay(10);
 
       // Check scan timeout which may occur when scan does not report completion
-      if (scanTimeout) {
-          
+      if (millis() - start > 10000) {
+           start = millis();
           break;
       }
 
